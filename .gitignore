@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+analysis/output/
+*.parquet
+*.csv
+.ipynb_checkpoints/
