@@ -10,6 +10,7 @@ separately-fit marginals. The regime test is Gap_t = alpha + delta*HighFunding_t
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -64,6 +65,59 @@ def build_gap_dataset(
     for c in control_cols:
         df[c] = panel.loc[idx, c]
     return df.dropna().sort_index()
+
+
+def paired_historical_gap_backtest(
+    panel: pd.DataFrame,
+    horizon_hours: int,
+    alpha: float = config.VAR_ALPHA,
+    min_train_hours: int = config.MIN_TRAIN_HOURS,
+    min_obs: int = 60,
+    origins: pd.DatetimeIndex | None = None,
+) -> pd.DataFrame:
+    """Bound-consistent alternative to `build_gap_dataset` (referee report,
+    item 1, 2026-11-24). `build_gap_dataset`'s Gap_t = VaR_net_t - VaR_price_t
+    combines two INDEPENDENTLY fitted quantile regressions (net_loss_var_backtest
+    and stage1_omission.price_only_var_backtest); nothing ties their fitted
+    quantiles to the pathwise identity L_net = L_price + C_signed, so Corollary
+    1's bound on the true gap need not transfer to this empirical construction
+    -- which is exactly why the reported 99th-percentile gap (14.3%/27.3%)
+    exceeded the deterministic bound (4.5%/10.5%).
+
+    Here VaR_price and VaR_net are both the alpha-quantile of the REALISED
+    L_price_H{h}/L_net_H{h} values over the identical expanding training
+    sample, restricted to rows where both are observed. Every row feeding
+    either quantile satisfies L_net = L_price + C_signed exactly (it is the
+    same realised panel identity), so the Corollary 1 monotonicity argument --
+    applied to this empirical distribution instead of two separate model
+    fits -- guarantees Gap_t = VaR_net_t - VaR_price_t in [-b_H, b_H] at every
+    origin, where b_H = horizon_hours * kappa_bar / 8.
+    """
+    price_col, net_col = f"L_price_H{horizon_hours}", f"L_net_H{horizon_hours}"
+    base.assert_hourly_grid(panel.index)
+    if origins is None:
+        origins = base.non_overlapping_origins(panel.index, horizon_hours, min_train_hours)
+    pos_of = {ts: i for i, ts in enumerate(panel.index)}
+    rows = []
+    for origin in origins:
+        pos = pos_of[origin]
+        label_cutoff = pos - horizon_hours  # same cutoff convention as models.base.run_rolling_backtest
+        train_labeled = panel.iloc[0 : max(0, label_cutoff + 1)]
+        d = train_labeled[[price_col, net_col]].dropna()
+        if len(d) < min_obs:
+            rows.append({"origin": origin, "VaR_price": np.nan, "VaR_net": np.nan, "n_train": len(d)})
+            continue
+        rows.append({
+            "origin": origin,
+            "VaR_price": float(np.quantile(d[price_col], alpha)),
+            "VaR_net": float(np.quantile(d[net_col], alpha)),
+            "n_train": len(d),
+        })
+    out = pd.DataFrame(rows).set_index("origin")
+    out["L_price_realized"] = panel.loc[out.index, price_col]
+    out["L_net_realized"] = panel.loc[out.index, net_col]
+    out["gap"] = out["VaR_net"] - out["VaR_price"]
+    return out.dropna(subset=["VaR_price", "VaR_net"]).sort_index()
 
 
 def price_es_backtest(
