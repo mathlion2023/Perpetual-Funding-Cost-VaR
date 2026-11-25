@@ -1,9 +1,7 @@
 # Perpetual-Funding-Cost-VaR
 
-Code accompanying **"Funding Is Not Free: Deterministic Bounds, a Collateral-Erosion
-Identity, and Out-of-Sample Risk Forecasts for Cumulative Perpetual-Futures Funding
-Costs"** (Mesias Alfeus, Tina Prodromou), submitted to *Frontiers of Mathematical
-Finance* (AIMS) as a Rapid Communication.
+Code accompanying **"Funding Is Not Free: Bounds, Forecasts, and Collateral
+Reserves for Perpetual Futures"** (Mesias Alfeus, Tina Prodromou).
 
 ## What this is
 

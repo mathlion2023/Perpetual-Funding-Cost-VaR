@@ -1,5 +1,5 @@
 """Summarise a run_pipeline rerun (both horizons) for the audit record and
-the FMF Rapid Communication, and compare it with a reference run.
+the paper, and compare it with a reference run.
 
 Conventions follow new_models_inference.py: the all-model common sample;
 Diebold-Mariano with 2 unweighted autocovariance lags and Benjamini-Hochberg

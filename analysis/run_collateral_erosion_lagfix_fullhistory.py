@@ -4,7 +4,7 @@ lag/gap-alignment audit (Topic1_Code_Audit_Record_2026-11-06.md, section 25
 of Topic1_Full_History_Results_Report.md). The original script's panel and
 LONG_RUN_DIR both point at pre-audit runs (full_run_fwdsum_fix /
 full_run_2026_09_29_corrected); this clone repoints both at
-full_run_2026_11_06_lagfix_fullhistory so the FMF Rapid Communication's
+full_run_2026_11_06_lagfix_fullhistory so the paper's
 Table 3 (collateral drain, PACRRatio, reserve shortfalls) uses the same
 corrected data as Tables 1-2. No methodology changed from
 run_collateral_erosion.py -- only the two input paths.
