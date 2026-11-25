@@ -1,5 +1,5 @@
 """Re-run of run_collateral_erosion.py (P0-P3 reserve-policy comparison, H1-H4
-descriptives) against the corrected full-history panel from the 2026-11-06
+descriptives) against the corrected 2022-2025 panel from the 2026-11-06
 lag/gap-alignment audit (Topic1_Code_Audit_Record_2026-11-06.md, section 25
 of Topic1_Full_History_Results_Report.md). The original script's panel and
 LONG_RUN_DIR both point at pre-audit runs (full_run_fwdsum_fix /
@@ -10,7 +10,7 @@ corrected data as Tables 1-2. No methodology changed from
 run_collateral_erosion.py -- only the two input paths.
 
 Usage:
-    python -m analysis.run_collateral_erosion_lagfix_fullhistory --out analysis/output/collateral_erosion_2026_11_24_lagfix_fullhistory
+    python -m analysis.run_collateral_erosion_lagfix_2022_2025 --out analysis/output/collateral_erosion_2026_11_25_lagfix_2022_2025
 """
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
 """Re-run of run_collateral_erosion_extra.py (P7 short-side reserve + McNemar
-exact tests) against the corrected full-history panel from the 2026-11-06
+exact tests) against the corrected 2022-2025 panel from the 2026-11-06
 lag/gap-alignment audit -- see run_collateral_erosion_lagfix_2022_2025.py
 for why. No methodology changed -- only the panel and LONG_RUN_DIR paths.
 
 Usage:
-    python -m analysis.run_collateral_erosion_extra_lagfix_fullhistory --out analysis/output/collateral_erosion_2026_11_24_lagfix_fullhistory
+    python -m analysis.run_collateral_erosion_extra_lagfix_2022_2025 --out analysis/output/collateral_erosion_2026_11_25_lagfix_2022_2025
 """
 from __future__ import annotations
 

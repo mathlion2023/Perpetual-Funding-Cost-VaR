@@ -1,5 +1,5 @@
 """Adaptive-conformal recalibration layer (Section 4.6.6 / recalibration.py)
-applied to the corrected full-history backtests from the 2026-11-06 lag/gap
+applied to the corrected 2022-2025 backtests from the 2026-11-06 lag/gap
 audit (full_run_2026_11_06_lagfix_2022_2025). No recalibration run exists
 yet on this corrected data (the only prior recalibration runs, under
 full_run_2026_09_29_corrected and new_models_2026_09_28, predate both the
@@ -8,7 +8,7 @@ post-processes the already-computed backtest_<model>_H{h}.csv files in that
 run directory -- it does not refit any model.
 
 Usage:
-    python -m analysis.run_recalibration_lagfix_fullhistory --out analysis/output/collateral_erosion_2026_11_24_lagfix_fullhistory
+    python -m analysis.run_recalibration_lagfix_2022_2025 --out analysis/output/collateral_erosion_2026_11_25_lagfix_2022_2025
 """
 from __future__ import annotations
 
