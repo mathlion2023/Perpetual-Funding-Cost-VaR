@@ -274,8 +274,11 @@ def main():
         print(f"  skipped: only {len(ds)} origins (<45 needed for a stable out-of-sample logit).")
 
     print("\n=== Section 9: funding-risk omission gap ===")
-    net_res = omission_gap.net_loss_var_backtest(p, args.horizon, min_train_hours=args.min_train_hours)
-    gap_ds = omission_gap.build_gap_dataset(p, price_res, net_res)
+    # Bound-consistent construction (code audit, 2026-11-25): paired realised
+    # quantiles, not two independently-fitted quantile regressions -- see
+    # omission_gap.build_gap_dataset's docstring for why the latter was
+    # found to violate Corollary 1's bound empirically.
+    gap_ds = omission_gap.build_gap_dataset_paired(p, args.horizon, min_train_hours=args.min_train_hours)
     if len(gap_ds) > 10:
         gap_result = omission_gap.fit_gap_regime_test(gap_ds)
         print(f"  delta={gap_result['delta']:.4g}, one-sided p={gap_result['delta_pvalue_one_sided_H0_delta_le_0']:.4f}")
@@ -286,7 +289,7 @@ def main():
         print(gap_rur_summary.to_string())
         gap_rur_summary.to_csv(args.out / "gap_rur_summary.csv")
 
-        mc_ds = omission_gap.build_gap_market_conditions_dataset(p, price_res, net_res)
+        mc_ds = omission_gap.build_gap_market_conditions_dataset_paired(p, args.horizon, min_train_hours=args.min_train_hours)
         if len(mc_ds) > 15:
             mc_result = omission_gap.fit_gap_market_conditions_regression(mc_ds)
             print(f"  market-conditions gap regression: n={mc_result['n']}, R^2={mc_result['r_squared']:.4f}")

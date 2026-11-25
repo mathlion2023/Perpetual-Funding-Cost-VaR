@@ -55,6 +55,14 @@ def build_gap_dataset(
     net_var_result: pd.DataFrame,
     control_cols: list[str] | None = None,
 ) -> pd.DataFrame:
+    """SUPERSEDED (code audit, 2026-11-25): combines two INDEPENDENTLY fitted
+    quantile regressions (price_var_result, net_var_result), so nothing ties
+    their fitted quantiles to the pathwise identity L_net = L_price +
+    C_signed -- Corollary 1's bound need not transfer to this empirical
+    construction, and empirically does not (99th-percentile gap 14.3%/27.3%
+    vs. a 4.5%/10.5% bound). Kept only for historical reproducibility of
+    pre-2026-11-24 output (e.g. rerun_2026_09_27*.py); do not wire this into
+    any new driver. Use `build_gap_dataset_paired` instead."""
     control_cols = control_cols or SECTION9_CONTROLS
     idx = price_var_result.index.intersection(net_var_result.index)
     df = pd.DataFrame(index=idx)
@@ -118,6 +126,29 @@ def paired_historical_gap_backtest(
     out["L_net_realized"] = panel.loc[out.index, net_col]
     out["gap"] = out["VaR_net"] - out["VaR_price"]
     return out.dropna(subset=["VaR_price", "VaR_net"]).sort_index()
+
+
+def build_gap_dataset_paired(
+    panel: pd.DataFrame,
+    horizon_hours: int,
+    alpha: float = config.VAR_ALPHA,
+    min_train_hours: int = config.MIN_TRAIN_HOURS,
+    control_cols: list[str] | None = None,
+) -> pd.DataFrame:
+    """Bound-consistent replacement for build_gap_dataset's role in Section 9
+    (code audit, 2026-11-25): sources VaR_price/VaR_net/gap from
+    `paired_historical_gap_backtest` (same realised sample, so Corollary 1's
+    bound holds by construction -- see its docstring) instead of two
+    independently-fitted quantile regressions, then attaches the same
+    high_funding/control columns `build_gap_dataset` did, for
+    `fit_gap_regime_test` and `build_gap_market_conditions_dataset_paired`."""
+    control_cols = control_cols or SECTION9_CONTROLS
+    gap_bt = paired_historical_gap_backtest(panel, horizon_hours, alpha=alpha, min_train_hours=min_train_hours)
+    df = gap_bt[["VaR_price", "VaR_net", "gap"]].copy()
+    df["high_funding"] = panel.loc[df.index, "high_funding"]
+    for c in control_cols:
+        df[c] = panel.loc[df.index, c]
+    return df.dropna().sort_index()
 
 
 def price_es_backtest(
@@ -283,14 +314,34 @@ def build_gap_market_conditions_dataset(
     net_var_result: pd.DataFrame,
     control_cols: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Section 11 item 4: explain Gap_t via the underlying market environment
-    (continuous funding level/volatility plus the same controls already used
-    elsewhere) rather than by regressing it directly on FundingVaR, and
-    rather than the binary HighFunding regime dummy used in
-    `fit_gap_regime_test`.
-    """
+    """SUPERSEDED (code audit, 2026-11-25): builds on `build_gap_dataset`,
+    which is itself superseded -- see that function's docstring. Kept only
+    for historical reproducibility; use `build_gap_market_conditions_dataset_paired`
+    instead."""
     control_cols = control_cols or MARKET_CONDITION_CONTROLS
     base_df = build_gap_dataset(panel, price_var_result, net_var_result, control_cols=control_cols)
+    fv = _funding_level_and_volatility(panel)
+    idx = base_df.index.intersection(fv.index)
+    df = base_df.loc[idx].copy()
+    df["FundingLevel"] = fv.loc[idx, "FundingLevel"]
+    df["FundingVolatility"] = fv.loc[idx, "FundingVolatility"]
+    return df.dropna().sort_index()
+
+
+def build_gap_market_conditions_dataset_paired(
+    panel: pd.DataFrame,
+    horizon_hours: int,
+    alpha: float = config.VAR_ALPHA,
+    min_train_hours: int = config.MIN_TRAIN_HOURS,
+    control_cols: list[str] | None = None,
+) -> pd.DataFrame:
+    """Section 11 item 4, bound-consistent version (code audit, 2026-11-25):
+    explain Gap_t via the underlying market environment, built on
+    `build_gap_dataset_paired` rather than the superseded `build_gap_dataset`.
+    """
+    control_cols = control_cols or MARKET_CONDITION_CONTROLS
+    base_df = build_gap_dataset_paired(panel, horizon_hours, alpha=alpha, min_train_hours=min_train_hours,
+                                        control_cols=control_cols)
     fv = _funding_level_and_volatility(panel)
     idx = base_df.index.intersection(fv.index)
     df = base_df.loc[idx].copy()

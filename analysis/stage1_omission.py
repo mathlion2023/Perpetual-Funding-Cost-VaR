@@ -218,7 +218,15 @@ def run_stage1_out_of_sample(df: pd.DataFrame, control_cols: list[str] | None = 
                 fit = sm.Logit(train["omission_event"], X_train).fit(disp=0)
                 x_new = new_z if cols else pd.DataFrame(index=[df.index[i]])
                 X_new = sm.add_constant(x_new, has_constant="add")
-                X_new = X_new.reindex(columns=X_train.columns, fill_value=1.0)
+                # fill_value=0.0 (code audit, 2026-11-25): any standardized
+                # predictor column absent from this single out-of-sample row
+                # should fill at the standardized mean (0.0), not 1.0 -- the
+                # "const" column itself is already present in x_new via
+                # has_constant="add" above, so this reindex only ever fills a
+                # genuinely-missing predictor, never the constant. Currently
+                # a no-op (train/predict column sets always match by
+                # construction) but was a latent trap otherwise.
+                X_new = X_new.reindex(columns=X_train.columns, fill_value=0.0)
                 p_hat = fit.predict(X_new).iloc[0]
             except Exception:
                 p_hat = train["omission_event"].mean()

@@ -41,7 +41,7 @@ from statsmodels.stats.proportion import proportion_confint
 from . import collateral_erosion as ce
 from . import config, stage1_omission
 from .models import base, caviar, historical_simulation, mean_funding, stochastic_vol
-from .run_collateral_erosion import LONG_RUN_DIR, price_only_var_backtest_short
+from .run_collateral_erosion import price_only_var_backtest_short
 
 SVJT_KWARGS = {"n_sims": 500}
 ALPHA = config.VAR_ALPHA  # 0.95
@@ -97,9 +97,15 @@ def main():
     # Inputs as arguments (lag audit, 2026-11-06): these were hard-coded to
     # full_run_fwdsum_fix / full_run_2026_09_29_corrected, so PACR and reserve
     # results silently stayed on a panel built before the 2026-10-20 f_eff fix.
-    ap.add_argument("--panel", type=Path, default=Path("analysis/output/full_run_fwdsum_fix/H72/panel.parquet"))
-    ap.add_argument("--long-run-dir", type=Path, default=LONG_RUN_DIR,
-                    help="run_pipeline output dir (with H72/, H168/) supplying P2/P3/P7 long-side forecasts")
+    # Defaults updated (code audit, 2026-11-25) to the current authoritative
+    # lagfix directory -- the arguments above existed but still defaulted to
+    # the stale pre-fix paths, so running this script with no flags (as its
+    # own Usage: line shows) silently reproduced the bug they were added to fix.
+    ap.add_argument("--panel", type=Path,
+                     default=Path("analysis/output/full_run_2026_11_06_lagfix_2022_2025/H72/panel.parquet"))
+    ap.add_argument("--long-run-dir", type=Path,
+                     default=Path("analysis/output/full_run_2026_11_06_lagfix_2022_2025"),
+                     help="run_pipeline output dir (with H72/, H168/) supplying P2/P3/P7 long-side forecasts")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 

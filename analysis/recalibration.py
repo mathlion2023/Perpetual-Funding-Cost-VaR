@@ -45,7 +45,12 @@ def aci_recalibrate(bt: pd.DataFrame, alpha: float = 0.95, gamma: float = 0.02, 
         levels.append(level)
         err = float(real_t > v)
         if len(scores) >= min_history:
-            a_t = a_t + gamma * (a_target - err)
+            # clip a_t itself, not just the derived `level` (code audit,
+            # 2026-11-25): without this, a long low-exception stretch can
+            # drift a_t outside [0,1], and the derived level then saturates
+            # at 0/1 for several subsequent origins before a_t re-enters
+            # range, even though a_t is reported as though still meaningful.
+            a_t = float(np.clip(a_t + gamma * (a_target - err), 0.0, 1.0))
         scores.append(real_t - var_t)
     out = pd.DataFrame({"var_forecast": adj, "realized": df["realized"].to_numpy(), "aci_level": levels}, index=df.index)
     out["exception"] = (out["realized"] > out["var_forecast"]).astype(float)

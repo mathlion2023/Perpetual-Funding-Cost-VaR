@@ -76,6 +76,7 @@ class SVFit:
     last_level: float
     last_f: float
     resid_std: float
+    h_path: pd.Series  # filtered log-variance level h_t, indexed like the fitted residual grid
 
 
 def _mean_equation_ols(df: pd.DataFrame, exog_cols: list[str]) -> tuple[np.ndarray, pd.Series]:
@@ -225,10 +226,11 @@ def _fit_sv_core(train_full: pd.DataFrame, exog_cols: list[str], min_obs: int) -
     # last level is the origin hour's (lag-audit fix, 2026-11-06; the filter
     # previously ran on the observed rows spliced together).
     resid_grid = resid.reindex(train_full.index[train_full.index.get_loc(resid.index[0]):])
-    omega, phi, sigma_h, last_level, h_path = _fit_kalman_sv(resid_grid)
+    omega, phi, sigma_h, last_level, h_path_arr = _fit_kalman_sv(resid_grid)
     resid = resid_grid
+    h_path = pd.Series(h_path_arr, index=resid_grid.index)
 
-    std_resid = resid.to_numpy() / np.exp(np.clip(h_path, *OMEGA_BOUNDS) / 2)
+    std_resid = resid.to_numpy() / np.exp(np.clip(h_path_arr, *OMEGA_BOUNDS) / 2)
     std_resid = std_resid[np.isfinite(std_resid)]
     try:
         nu, _, _ = student_t.fit(std_resid, floc=0, fscale=1)
@@ -248,6 +250,7 @@ def _fit_sv_core(train_full: pd.DataFrame, exog_cols: list[str], min_obs: int) -
         last_level=last_level,
         last_f=float(train_full["f_eff"].iloc[-1]),  # the origin hour's own f_eff (checked finite above)
         resid_std=float(resid.std()),
+        h_path=h_path,
     )
 
 
@@ -343,8 +346,18 @@ def svj_t_var(
     df = df.dropna(subset=["f_eff", "f_eff_lag1"] + lag_exog_cols)
     mu_hat = fit.a + fit.rho * df["f_eff_lag1"] + (df[lag_exog_cols].to_numpy() @ fit.theta)
     resid = df["f_eff"] - mu_hat
-    sigma_hat = np.exp(fit.omega / 2)  # unconditional average vol as a simple scale reference
-    z = resid / max(sigma_hat, 1e-12)
+    # Time-varying standardization, matching the nu fit's own treatment in
+    # _fit_sv_core (see _kalman_filter_levels's docstring): standardizing by
+    # a single constant leaves volatility clustering in the "standardized"
+    # series, so ordinary high-volatility-regime residuals get flagged as
+    # jumps purely because the whole window is turbulent, not because they
+    # are discontinuous. Verified empirically against the real panel: the
+    # constant-scale version flagged ~7x more jump candidates and fitted a
+    # ~7x higher jump probability than this time-varying version, at every
+    # backtest origin.
+    h_now = fit.h_path.reindex(df.index).clip(*OMEGA_BOUNDS)
+    scale = np.exp(h_now / 2).clip(lower=1e-12)
+    z = resid / scale
 
     mad = float(np.median(np.abs(z - np.median(z)))) * 1.4826
     thresh = jump_threshold_mad * max(mad, 1e-8)
@@ -369,6 +382,9 @@ def svj_t_var(
             p_jump = float(1 / (1 + np.exp(-x_now @ logit.params.to_numpy())))
         except Exception:
             p_jump = float(jump_mask.mean())
+        # Safety bound, not a modeling choice: the fitted value never
+        # approaches 0.5 on the real panel (max observed ~0.26), so this
+        # only guards against a degenerate logit fit on some future sample.
         jump_params = {"p_jump": np.clip(p_jump, 0.0, 0.5), "muJ": muJ, "sigmaJ": sigmaJ}
     else:
         jump_params = None  # too few candidate jumps to fit a stable jump component

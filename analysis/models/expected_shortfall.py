@@ -63,4 +63,12 @@ def direct_quantile_es(
         if np.isnan(v):
             return np.nan
         forecasts.append(v)
+    # Enforce monotonicity across the grid (code audit, 2026-11-25): each
+    # VaR_u is an independently-fit linear quantile regression, so quantile
+    # crossing is possible (a well-known artefact of this estimation family --
+    # the same failure mode already found and fixed once in this project's
+    # gap-dataset construction). Without this, a higher-quantile forecast can
+    # land below a lower one, and the resulting "ES" can come out below the
+    # alpha-quantile VaR it is supposed to exceed.
+    forecasts = np.maximum.accumulate(forecasts)
     return float(np.mean(forecasts))

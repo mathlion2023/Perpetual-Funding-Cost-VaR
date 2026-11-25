@@ -109,9 +109,16 @@ def mm_rate(s_btc: np.ndarray | float, base_rate: np.ndarray | float = MM_BASE_R
     return base_rate + MM_SIZE_COEF * s_btc
 
 
-def maintenance_margin_btc(n_usd: float, mark_price: np.ndarray | float):
+def maintenance_margin_btc(n_usd: float, mark_price: np.ndarray | float, as_of: pd.Timestamp | None = None):
+    """Unlike `net_max_arrays` (which applies `mm_base_rate_series`'s
+    time-varying schedule at each hour), this had no time argument at all and
+    silently used the stale pre-2022-01-11 MM_BASE_RATE for every call (dead
+    code, zero call sites as of the 2026-11-25 code audit, but a trap for any
+    future caller). Pass `as_of` to get the correct rate for that hour;
+    omitting it keeps the old (pre-2022) constant-rate behaviour."""
     s = n_usd / mark_price
-    return s * mm_rate(s)
+    base_rate = MM_BASE_RATE if as_of is None else mm_base_rate_series(pd.DatetimeIndex([as_of]))[0]
+    return s * mm_rate(s, base_rate)
 
 
 def _cumsum_window(series: np.ndarray, h: int, m: int) -> np.ndarray:

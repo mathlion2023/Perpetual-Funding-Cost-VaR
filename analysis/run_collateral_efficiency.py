@@ -97,7 +97,14 @@ def main():
 
                 print(f"  [{h}h L{leverage}] {model_name}: n_fit={fit['n_fit']}", flush=True)
 
-            pacr_test_series = df_test["PACRRatio"]  # same PACRRatio col regardless of model (only predictors differ)
+            # PACRRatio itself doesn't depend on any model's extra features, only on
+            # baseline predictors (bug fix, code audit 2026-11-25: this used to be
+            # `df_test["PACRRatio"]` left over from the loop's last iteration, so it
+            # was silently bound to whichever model happened to be last in
+            # cef.MODEL_FEATURES rather than a model-agnostic series. Built fresh here
+            # with no extra features so its index is the superset every per-model
+            # reserve series can align against).
+            pacr_test_series = cef.build_dataset(panel, h, leverage, origins_test, {})["PACRRatio"]
             baseline_reserve = reserve_by_model_tau["price_only"]
             for model_name in ("price_funding", "price_vol", "price_funding_vol", "price_funding_vol_rough"):
                 for metric in ("shortfall_rate", "mean_unmet_all"):

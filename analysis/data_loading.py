@@ -119,7 +119,13 @@ def load_funding_range(start: dt.date, end: dt.date) -> pd.DataFrame:
 
     df = pd.concat(frames, ignore_index=True)
     df["ts"] = pd.to_datetime(df["timestamp"], unit="s", utc=True)
-    df = df.sort_values("ts").drop_duplicates(subset="ts").reset_index(drop=True)
+    # kind="stable" (code audit, 2026-11-25): pandas' default sort is not
+    # stable, so a same-timestamp tie would otherwise break inconsistently
+    # depending on how much surrounding data is being sorted -- same failure
+    # mode documented and fixed for load_trades_range below. No separate
+    # tiebreak column exists for this snapshot feed, so a stable sort (tie
+    # order = original file/row concatenation order) is the deterministic fix.
+    df = df.sort_values("ts", kind="stable").drop_duplicates(subset="ts").reset_index(drop=True)
     return df
 
 
@@ -204,7 +210,8 @@ def load_binance_quotes_range(start: dt.date, end: dt.date) -> pd.DataFrame:
 
     df = pd.concat(frames, ignore_index=True)
     df["ts"] = pd.to_datetime(df["timestamp"], unit="s", utc=True)
-    df = df.dropna(subset=["bid", "ask"]).sort_values("ts").drop_duplicates(subset="ts").reset_index(drop=True)
+    # kind="stable" (code audit, 2026-11-25): see load_funding_range's comment.
+    df = df.dropna(subset=["bid", "ask"]).sort_values("ts", kind="stable").drop_duplicates(subset="ts").reset_index(drop=True)
     return df[["ts", "bid", "ask"]]
 
 
@@ -246,7 +253,8 @@ def load_binance_funding_range(start: dt.date, end: dt.date) -> pd.DataFrame:
 
     df = pd.concat(frames, ignore_index=True)
     df["ts"] = pd.to_datetime(df["timestamp"], unit="s", utc=True)
-    df = df.sort_values("ts").drop_duplicates(subset="ts").reset_index(drop=True)
+    # kind="stable" (code audit, 2026-11-25): see load_funding_range's comment.
+    df = df.sort_values("ts", kind="stable").drop_duplicates(subset="ts").reset_index(drop=True)
     return df
 
 
