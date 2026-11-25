@@ -55,3 +55,26 @@ def aci_recalibrate(bt: pd.DataFrame, alpha: float = 0.95, gamma: float = 0.02, 
     out = pd.DataFrame({"var_forecast": adj, "realized": df["realized"].to_numpy(), "aci_level": levels}, index=df.index)
     out["exception"] = (out["realized"] > out["var_forecast"]).astype(float)
     return out
+
+
+def rolling_quantile_recalibrate(bt: pd.DataFrame, alpha: float = 0.95, min_history: int = 20) -> pd.DataFrame:
+    """Referee-requested simpler baseline (Topic1_FRL_Referee_Report.pdf,
+    item 3): static split-conformal correction, i.e. aci_recalibrate with the
+    online a_t update removed. The adjustment at each origin is var_t plus
+    the alpha-quantile of all earlier (fully realised) forecast errors --
+    the level never moves away from alpha, so this isolates how much of
+    ACI's gain comes from the adaptive step itself versus from simply
+    adding an expanding-window empirical quantile correction."""
+    df = bt[["var_forecast", "realized"]].dropna().sort_index()
+    scores: list[float] = []
+    adj = []
+    for var_t, real_t in zip(df["var_forecast"].to_numpy(), df["realized"].to_numpy()):
+        if len(scores) >= min_history:
+            v = var_t + float(np.quantile(scores, alpha))
+        else:
+            v = var_t  # same warm-up convention as aci_recalibrate
+        adj.append(v)
+        scores.append(real_t - var_t)
+    out = pd.DataFrame({"var_forecast": adj, "realized": df["realized"].to_numpy()}, index=df.index)
+    out["exception"] = (out["realized"] > out["var_forecast"]).astype(float)
+    return out
