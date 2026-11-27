@@ -1,7 +1,7 @@
 # Perpetual-Funding-Cost-VaR
 
-Code accompanying **"Funding Is Not Free: Bounds, Forecasts, and Collateral
-Reserves for Perpetual Futures"** (Mesias Alfeus, Tina Prodromou).
+Code accompanying **"Forecasting the Tail of Cumulative Funding Costs in
+Perpetual Futures"** (Tina Prodromou, Mesias Alfeus).
 
 ## What this is
 
@@ -54,7 +54,7 @@ analysis/
 
 ```bash
 pip install -r analysis/requirements.txt
-python -m analysis.run_pipeline --start 2020-07-22 --end 2025-06-30 --horizon 72 \
+python -m analysis.run_pipeline --start 2022-04-01 --end 2025-06-30 --horizon 72 \
     --models historical_simulation direct_quantile caviar arx_garch_t sv_t svj_t \
              rough_vol har_quantile gas_t ms_garch_t stationary_bootstrap \
     --out analysis/output/your_run/H72
